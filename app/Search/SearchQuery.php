@@ -81,4 +81,37 @@ final readonly class SearchQuery
             aggregate: $this->aggregate,
         );
     }
+
+    /**
+     * @return array{
+     *     entity: string,
+     *     filters: list<array{field: string, operator: string, value: mixed}>,
+     *     sort: string|null,
+     *     direction: string,
+     *     limit: int,
+     *     aggregate: array{function: string, field: string, groupBy: string|null}|null
+     * }
+     */
+    public function toArray(): array
+    {
+        return [
+            'entity' => $this->entity,
+            'filters' => array_map(
+                fn (Filter $filter): array => [
+                    'field' => $filter->field,
+                    'operator' => $filter->operator,
+                    'value' => $filter->value,
+                ],
+                $this->filters,
+            ),
+            'sort' => $this->sort,
+            'direction' => $this->direction,
+            'limit' => $this->limit,
+            'aggregate' => $this->aggregate === null ? null : [
+                'function' => $this->aggregate->function,
+                'field' => $this->aggregate->field,
+                'groupBy' => $this->aggregate->groupBy,
+            ],
+        ];
+    }
 }

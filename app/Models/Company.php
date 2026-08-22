@@ -52,4 +52,12 @@ class Company extends Model
     {
         return $this->hasMany(Invoice::class);
     }
+
+    /**
+     * @return HasMany<AiSearchLog, $this>
+     */
+    public function aiSearchLogs(): HasMany
+    {
+        return $this->hasMany(AiSearchLog::class);
+    }
 }

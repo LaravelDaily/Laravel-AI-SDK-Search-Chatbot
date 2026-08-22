@@ -6,6 +6,7 @@ use App\Enums\UserRole;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -32,6 +33,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Company|null $company
+ * @property-read Collection<int, AiSearchLog> $aiSearchLogs
  */
 #[Fillable(['name', 'email', 'password', 'company_id', 'role'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
@@ -95,5 +97,18 @@ class User extends Authenticatable implements PasskeyUser
     public function requestNotes(): HasMany
     {
         return $this->hasMany(RequestNote::class, 'author_id');
+    }
+
+    /**
+     * @return HasMany<AiSearchLog, $this>
+     */
+    public function aiSearchLogs(): HasMany
+    {
+        return $this->hasMany(AiSearchLog::class);
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->role === UserRole::Admin;
     }
 }

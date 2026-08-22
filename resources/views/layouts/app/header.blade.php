@@ -13,6 +13,14 @@
                 <flux:navbar.item icon="layout-grid" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>
                     {{ __('Dashboard') }}
                 </flux:navbar.item>
+                <flux:navbar.item icon="magnifying-glass" :href="route('search.index')" :current="request()->routeIs('search.*')" wire:navigate>
+                    {{ __('Search') }}
+                </flux:navbar.item>
+                @if (auth()->user()?->isAdmin())
+                    <flux:navbar.item icon="clipboard-document-list" :href="route('admin.ai-logs.index')" :current="request()->routeIs('admin.ai-logs.*')" wire:navigate>
+                        {{ __('AI logs') }}
+                    </flux:navbar.item>
+                @endif
             </flux:navbar>
 
             <flux:spacer />
@@ -56,6 +64,14 @@
                     <flux:sidebar.item icon="layout-grid" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>
                         {{ __('Dashboard')  }}
                     </flux:sidebar.item>
+                    <flux:sidebar.item icon="magnifying-glass" :href="route('search.index')" :current="request()->routeIs('search.*')" wire:navigate>
+                        {{ __('Search') }}
+                    </flux:sidebar.item>
+                    @if (auth()->user()?->isAdmin())
+                        <flux:sidebar.item icon="clipboard-document-list" :href="route('admin.ai-logs.index')" :current="request()->routeIs('admin.ai-logs.*')" wire:navigate>
+                            {{ __('AI logs') }}
+                        </flux:sidebar.item>
+                    @endif
                 </flux:sidebar.group>
             </flux:sidebar.nav>
 

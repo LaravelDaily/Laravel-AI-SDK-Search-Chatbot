@@ -12,10 +12,16 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 final class SearchQueryRunner
 {
     public function run(SearchQuery $query, User $actor): SearchResult
+    {
+        return $this->withStatementTimeout(fn (): SearchResult => $this->execute($query, $actor));
+    }
+
+    private function execute(SearchQuery $query, User $actor): SearchResult
     {
         $limit = max(1, min($query->limit, SearchSchema::MAX_LIMIT));
         $appliedQuery = $query->withLimit($limit);
@@ -58,6 +64,37 @@ final class SearchQueryRunner
             appliedQuery: $appliedQuery,
             sql: $sql,
         );
+    }
+
+    /**
+     * @template TReturn
+     *
+     * @param  callable(): TReturn  $callback
+     * @return TReturn
+     */
+    private function withStatementTimeout(callable $callback): mixed
+    {
+        $timeoutMs = (int) config('search.statement_timeout_ms');
+        $connection = DB::connection();
+        $driver = $connection->getDriverName();
+
+        if ($timeoutMs <= 0 || ! in_array($driver, ['mysql', 'mariadb', 'pgsql'], true)) {
+            return $callback();
+        }
+
+        try {
+            match ($driver) {
+                'pgsql' => $connection->statement('SET statement_timeout = '.(int) $timeoutMs),
+                default => $connection->statement('SET SESSION MAX_EXECUTION_TIME = '.(int) $timeoutMs),
+            };
+
+            return $callback();
+        } finally {
+            match ($driver) {
+                'pgsql' => $connection->statement('SET statement_timeout = 0'),
+                default => $connection->statement('SET SESSION MAX_EXECUTION_TIME = 0'),
+            };
+        }
     }
 
     /**
