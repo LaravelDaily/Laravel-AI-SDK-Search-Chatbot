@@ -55,7 +55,7 @@ class DemoDataSeeder extends Seeder
             name: 'Acme Services',
             emailPrefix: 'acme',
             withAmbiguousCustomers: true,
-            lastYearRequestCount: 80,
+            lastYearRequestCount: 200,
             olderRequestCount: 40,
         );
 
