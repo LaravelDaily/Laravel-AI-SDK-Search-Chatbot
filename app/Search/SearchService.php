@@ -19,6 +19,7 @@ final class SearchService
         private SearchQueryRunner $runner,
         private TenantGuard $tenantGuard,
         private TokenCostEstimator $costEstimator,
+        private SearchQueryValidator $validator,
     ) {}
 
     public function search(string $question, User $actor): SearchAttempt
@@ -74,10 +75,11 @@ final class SearchService
                 outcome: SearchOutcome::Clarification,
                 startedAt: $startedAt,
                 interpretation: $translation->interpretation,
-                message: $translation->clarification,
+                message: $translation->clarification ?? 'This question is ambiguous. Please be more specific.',
                 query: $translation->query,
                 attempts: $translation->attempts,
                 usage: $translation->tokenUsage,
+                confidence: $translation->confidence,
             );
         }
 
@@ -94,6 +96,7 @@ final class SearchService
                 query: $query,
                 attempts: $translation->attempts,
                 usage: $translation->tokenUsage,
+                confidence: $translation->confidence,
             );
         }
 
@@ -111,6 +114,7 @@ final class SearchService
                 candidates: $resolution->candidates,
                 attempts: $translation->attempts,
                 usage: $translation->tokenUsage,
+                confidence: $translation->confidence,
             );
         }
 
@@ -125,6 +129,7 @@ final class SearchService
                 query: $resolution->query,
                 attempts: $translation->attempts,
                 usage: $translation->tokenUsage,
+                confidence: $translation->confidence,
             );
         }
 
@@ -140,6 +145,53 @@ final class SearchService
             result: $result,
             attempts: $translation->attempts,
             usage: $translation->tokenUsage,
+            confidence: $translation->confidence,
+        );
+    }
+
+    public function rerun(SearchQuery $query, User $actor, string $question, ?string $interpretation = null, ?string $confidence = null): SearchAttempt
+    {
+        $startedAt = hrtime(true);
+
+        if ($this->tenantGuard->wouldAccessOtherTenant($query, $actor)) {
+            return $this->finish(
+                actor: $actor,
+                question: $question,
+                outcome: SearchOutcome::Blocked,
+                startedAt: $startedAt,
+                interpretation: $interpretation,
+                message: 'This search was blocked because it would access another tenant\'s data.',
+                query: $query,
+                confidence: $confidence,
+            );
+        }
+
+        try {
+            $this->validator->validate($query);
+        } catch (InvalidSearchQuery $exception) {
+            return $this->finish(
+                actor: $actor,
+                question: $question,
+                outcome: SearchOutcome::Failed,
+                startedAt: $startedAt,
+                interpretation: $interpretation,
+                message: $exception->reason(),
+                query: $query,
+                confidence: $confidence,
+            );
+        }
+
+        $result = $this->runner->run($query, $actor);
+
+        return $this->finish(
+            actor: $actor,
+            question: $question,
+            outcome: SearchOutcome::Ok,
+            startedAt: $startedAt,
+            interpretation: $interpretation,
+            query: $result->appliedQuery,
+            result: $result,
+            confidence: $confidence,
         );
     }
 
@@ -158,6 +210,7 @@ final class SearchService
         array $candidates = [],
         int $attempts = 0,
         ?Usage $usage = null,
+        ?string $confidence = null,
     ): SearchAttempt {
         $usage ??= new Usage;
 
@@ -187,6 +240,7 @@ final class SearchService
             candidates: $candidates,
             log: $log,
             attempts: $attempts,
+            confidence: $confidence,
         );
     }
 

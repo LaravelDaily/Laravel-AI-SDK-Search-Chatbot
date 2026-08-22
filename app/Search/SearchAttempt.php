@@ -19,5 +19,16 @@ final readonly class SearchAttempt
         public array $candidates,
         public AiSearchLog $log,
         public int $attempts,
+        public ?string $confidence = null,
     ) {}
+
+    public function showsResults(): bool
+    {
+        return $this->outcome === SearchOutcome::Ok && $this->result instanceof SearchResult;
+    }
+
+    public function showsDisambiguation(): bool
+    {
+        return $this->outcome === SearchOutcome::Clarification;
+    }
 }

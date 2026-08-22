@@ -18,6 +18,6 @@ final readonly class Translation
 
     public function needsClarification(): bool
     {
-        return filled($this->clarification);
+        return filled($this->clarification) || $this->confidence === 'low';
     }
 }
