@@ -56,6 +56,63 @@ final class SearchSchema
     }
 
     /**
+     * @return array<string, list<string>>
+     */
+    public static function synonyms(): array
+    {
+        return [
+            'service_requests' => ['ticket', 'tickets', 'request', 'requests', 'service request'],
+            'customers' => ['customer', 'client', 'clients'],
+            'invoices' => ['invoice', 'bill', 'bills'],
+        ];
+    }
+
+    public static function forPrompt(): string
+    {
+        $lines = [
+            'Allowed entities and fields. Never invent fields outside this list.',
+            'Business synonyms:',
+        ];
+
+        foreach (self::synonyms() as $entity => $synonyms) {
+            $lines[] = '- '.$entity.': '.implode(', ', $synonyms);
+        }
+
+        $lines[] = '"Last year" means a rolling 12 months unless the user names a calendar year.';
+        $lines[] = '';
+
+        foreach (self::all() as $entity) {
+            $lines[] = "Entity: {$entity->name}";
+            $lines[] = 'Fields:';
+
+            foreach ($entity->fields as $field) {
+                if ($field->denied) {
+                    continue;
+                }
+
+                $operators = implode(', ', array_map(
+                    static fn (Operator $operator): string => $operator->value,
+                    $field->operators,
+                ));
+
+                $line = "  - {$field->name} (type: {$field->type->value}; operators: {$operators}";
+
+                if ($field->enumValues !== null) {
+                    $line .= '; values: '.implode(', ', $field->enumValues);
+                }
+
+                $line .= ')';
+                $lines[] = $line;
+            }
+
+            $lines[] = '  Sort keys: '.implode(', ', $entity->sortKeys);
+            $lines[] = '';
+        }
+
+        return trim(implode("\n", $lines));
+    }
+
+    /**
      * @return array<string, EntitySchema>
      */
     private static function definitions(): array
