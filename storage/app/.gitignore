@@ -1,4 +1,7 @@
 *
 !private/
 !public/
+!evals/
+!evals/.gitignore
+!evals/*.json
 !.gitignore

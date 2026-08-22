@@ -22,7 +22,7 @@ final class SearchService
         private SearchQueryValidator $validator,
     ) {}
 
-    public function search(string $question, User $actor): SearchAttempt
+    public function search(string $question, User $actor, ?string $model = null, ?int $timeout = null): SearchAttempt
     {
         $startedAt = hrtime(true);
 
@@ -53,7 +53,7 @@ final class SearchService
 
         RateLimiter::increment($this->rateLimitKey($actor));
 
-        $translation = $this->translator->translate($question, $actor);
+        $translation = $this->translator->translate($question, $actor, $model, $timeout);
 
         if ($translation instanceof TranslationFailed) {
             return $this->finish(

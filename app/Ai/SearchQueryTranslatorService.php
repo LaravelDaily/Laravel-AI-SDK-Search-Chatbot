@@ -14,13 +14,13 @@ final class SearchQueryTranslatorService
 {
     public function __construct(private SearchQueryValidator $validator) {}
 
-    public function translate(string $question, User $actor): Translation|TranslationFailed
+    public function translate(string $question, User $actor, ?string $model = null, ?int $timeout = null): Translation|TranslationFailed
     {
         $agent = new SearchQueryTranslator($actor);
         $usage = new Usage;
         $attempts = 0;
 
-        $first = $this->prompt($agent, $this->userPrompt($question, $actor), $usage, $attempts);
+        $first = $this->prompt($agent, $this->userPrompt($question, $actor), $usage, $attempts, $model, $timeout);
 
         if ($first instanceof TranslationFailed || $first->needsClarification()) {
             return $first;
@@ -36,6 +36,8 @@ final class SearchQueryTranslatorService
                 $this->repairPrompt($question, $actor, $exception->reason()),
                 $usage,
                 $attempts,
+                $model,
+                $timeout,
             );
 
             if ($repair instanceof TranslationFailed || $repair->needsClarification()) {
@@ -62,8 +64,10 @@ final class SearchQueryTranslatorService
         string $prompt,
         Usage &$usage,
         int &$attempts,
+        ?string $model = null,
+        ?int $timeout = null,
     ): Translation|TranslationFailed {
-        $response = $agent->prompt($prompt);
+        $response = $agent->prompt($prompt, model: $model, timeout: $timeout);
         $usage = $usage->add($response->usage);
         $attempts++;
 
