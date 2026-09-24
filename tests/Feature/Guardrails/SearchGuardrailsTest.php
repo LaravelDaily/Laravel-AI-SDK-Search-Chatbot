@@ -10,7 +10,7 @@ use App\Models\User;
 use App\Search\SearchOutcome;
 use App\Search\SearchService;
 use Laravel\Ai\Responses\Data\Meta;
-use Laravel\Ai\Responses\Data\Usage;
+use Laravel\Ai\Responses\Data\TextUsage;
 use Laravel\Ai\Responses\StructuredTextResponse;
 
 beforeEach(function () {
@@ -143,7 +143,7 @@ it('records token usage and estimated cost', function () {
         new StructuredTextResponse(
             $output,
             json_encode($output),
-            new Usage(promptTokens: 10000, completionTokens: 2000),
+            new TextUsage(inputTokens: 10000, outputTokens: 2000),
             new Meta('anthropic', 'claude-sonnet-5'),
         ),
     ])->preventStrayPrompts();

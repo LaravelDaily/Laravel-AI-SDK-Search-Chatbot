@@ -3,7 +3,7 @@
 namespace App\Ai;
 
 use App\Search\SearchQuery;
-use Laravel\Ai\Responses\Data\Usage;
+use Laravel\Ai\Responses\Data\TextUsage;
 
 final readonly class Translation
 {
@@ -13,7 +13,7 @@ final readonly class Translation
         public string $confidence,
         public ?string $clarification,
         public int $attempts,
-        public Usage $tokenUsage,
+        public TextUsage $tokenUsage,
     ) {}
 
     public function needsClarification(): bool

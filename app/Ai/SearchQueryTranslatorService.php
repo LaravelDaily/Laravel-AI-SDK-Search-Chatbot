@@ -8,7 +8,7 @@ use App\Search\InvalidSearchQuery;
 use App\Search\SearchQuery;
 use App\Search\SearchQueryValidator;
 use App\Search\SearchSchema;
-use Laravel\Ai\Responses\Data\Usage;
+use Laravel\Ai\Responses\Data\TextUsage;
 use Laravel\Ai\Responses\StructuredAgentResponse;
 
 final class SearchQueryTranslatorService
@@ -18,7 +18,7 @@ final class SearchQueryTranslatorService
     public function translate(string $question, User $actor, ?string $model = null, ?int $timeout = null): Translation|TranslationFailed
     {
         $agent = new SearchQueryTranslator($actor);
-        $usage = new Usage;
+        $usage = new TextUsage;
         $attempts = 0;
 
         $first = $this->prompt($agent, $this->userPrompt($question, $actor), $usage, $attempts, $model, $timeout);
@@ -63,7 +63,7 @@ final class SearchQueryTranslatorService
     private function prompt(
         SearchQueryTranslator $agent,
         string $prompt,
-        Usage &$usage,
+        TextUsage &$usage,
         int &$attempts,
         ?string $model = null,
         ?int $timeout = null,
@@ -75,7 +75,7 @@ final class SearchQueryTranslatorService
         return $this->mapResponse($response, $attempts, $usage);
     }
 
-    private function mapResponse(mixed $response, int $attempts, Usage $usage): Translation|TranslationFailed
+    private function mapResponse(mixed $response, int $attempts, TextUsage $usage): Translation|TranslationFailed
     {
         $output = $response instanceof StructuredAgentResponse
             ? $response->structured

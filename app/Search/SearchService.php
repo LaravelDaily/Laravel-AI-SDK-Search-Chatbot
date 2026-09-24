@@ -8,7 +8,7 @@ use App\Models\AiSearchLog;
 use App\Models\User;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
-use Laravel\Ai\Responses\Data\Usage;
+use Laravel\Ai\Responses\Data\TextUsage;
 use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
 
 final class SearchService
@@ -209,10 +209,10 @@ final class SearchService
         ?SearchResult $result = null,
         array $candidates = [],
         int $attempts = 0,
-        ?Usage $usage = null,
+        ?TextUsage $usage = null,
         ?string $confidence = null,
     ): SearchAttempt {
-        $usage ??= new Usage;
+        $usage ??= new TextUsage;
 
         $log = AiSearchLog::query()->create([
             'user_id' => $actor->id,
@@ -223,8 +223,8 @@ final class SearchService
             'compiled_sql' => $result?->sql,
             'row_count' => $result?->total,
             'attempts' => $attempts,
-            'input_tokens' => $usage->promptTokens,
-            'output_tokens' => $usage->completionTokens,
+            'input_tokens' => $usage->inputTokens,
+            'output_tokens' => $usage->outputTokens,
             'estimated_cost_cents' => $this->costEstimator->cents($usage),
             'outcome' => $outcome,
             'duration_ms' => $this->durationMs($startedAt),
