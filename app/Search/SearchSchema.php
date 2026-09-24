@@ -73,7 +73,6 @@ final class SearchSchema
      */
     public static function dateFormatRule(): string
     {
-        return '';
         return 'Date and datetime values must be written as YYYY-MM-DD or YYYY-MM-DD HH:MM:SS. '
             .'Never use ISO-8601 with a T separator or a Z/offset suffix.';
     }
@@ -90,7 +89,7 @@ final class SearchSchema
         }
 
         $lines[] = '"Last year" means a rolling 12 months unless the user names a calendar year.';
-        // $lines[] = self::dateFormatRule();
+        $lines[] = self::dateFormatRule();
         $lines[] = '';
 
         foreach (self::all() as $entity) {
