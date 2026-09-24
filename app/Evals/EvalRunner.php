@@ -2,6 +2,7 @@
 
 namespace App\Evals;
 
+use App\Ai\Agents\SearchQueryTranslator;
 use App\Search\SearchAttempt;
 use App\Search\SearchService;
 use Throwable;
@@ -36,7 +37,7 @@ final class EvalRunner
         }
 
         return new EvalReport(
-            model: $model ?? 'claude-sonnet-5',
+            model: $model ?? SearchQueryTranslator::MODEL,
             runsPerCase: $runs,
             cases: $results,
             timestamp: now()->toIso8601String(),

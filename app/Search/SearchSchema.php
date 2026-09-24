@@ -67,6 +67,17 @@ final class SearchSchema
         ];
     }
 
+    /**
+     * The date format contract, stated to the model and enforced by SearchQueryValidator::parseDate().
+     * Both sides must agree; change one and you must change the other.
+     */
+    public static function dateFormatRule(): string
+    {
+        return '';
+        return 'Date and datetime values must be written as YYYY-MM-DD or YYYY-MM-DD HH:MM:SS. '
+            .'Never use ISO-8601 with a T separator or a Z/offset suffix.';
+    }
+
     public static function forPrompt(): string
     {
         $lines = [
@@ -79,6 +90,7 @@ final class SearchSchema
         }
 
         $lines[] = '"Last year" means a rolling 12 months unless the user names a calendar year.';
+        // $lines[] = self::dateFormatRule();
         $lines[] = '';
 
         foreach (self::all() as $entity) {

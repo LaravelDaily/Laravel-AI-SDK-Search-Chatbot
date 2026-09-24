@@ -65,15 +65,31 @@ it('rejects limit above 200 and negative limit', function (int $limit, string $e
     'zero' => [0, 'Limit must be at least 1.'],
 ]);
 
-it('rejects malformed dates', function () {
+it('rejects malformed dates', function (string $value) {
     $query = new SearchQuery(
         entity: 'service_requests',
-        filters: [new Filter(field: 'opened_at', operator: '=', value: 'not-a-date')],
+        filters: [new Filter(field: 'opened_at', operator: '=', value: $value)],
     );
 
     expect(fn () => $this->validator->validate($query))
-        ->toThrow(InvalidSearchQuery::class, "Invalid date value 'not-a-date' for field 'opened_at'.");
-});
+        ->toThrow(InvalidSearchQuery::class, "Invalid date value '{$value}' for field 'opened_at'.");
+})->with([
+    'nonsense' => 'not-a-date',
+    'iso-8601 with T and Z' => '2025-09-03T00:00:00Z',
+    'iso-8601 with offset' => '2025-09-03T00:00:00+00:00',
+]);
+
+it('accepts the date formats the prompt tells the model to use', function (string $value) {
+    $query = new SearchQuery(
+        entity: 'service_requests',
+        filters: [new Filter(field: 'opened_at', operator: '=', value: $value)],
+    );
+
+    expect($this->validator->validate($query))->toBe($query);
+})->with([
+    'date' => '2025-09-03',
+    'datetime' => '2025-09-03 14:30:00',
+]);
 
 it('rejects unknown sort keys', function () {
     $query = new SearchQuery(

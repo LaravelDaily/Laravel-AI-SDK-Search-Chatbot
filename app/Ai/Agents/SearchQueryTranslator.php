@@ -15,6 +15,10 @@ final class SearchQueryTranslator implements Agent, HasStructuredOutput
 {
     use Promptable;
 
+    public const string PROVIDER = 'openai';
+
+    public const string MODEL = 'gpt-4o';
+
     public function __construct(public User $actor) {}
 
     public function instructions(): string
@@ -39,12 +43,12 @@ PROMPT;
 
     public function provider(): string
     {
-        return 'anthropic';
+        return self::PROVIDER;
     }
 
     public function model(): string
     {
-        return 'claude-sonnet-5';
+        return self::MODEL;
     }
 
     /**

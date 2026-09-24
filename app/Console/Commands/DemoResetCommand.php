@@ -47,8 +47,13 @@ class DemoResetCommand extends Command
 
     private function wipeDataTables(): void
     {
-        Schema::withoutForeignKeyConstraints(function (): void {
-            foreach (Schema::getTableListing(schemaQualified: false) as $table) {
+        // Scope the listing to this connection's schema. Without it MySQL returns every
+        // table on the server, including other local projects', and the first name that
+        // does not exist here aborts the wipe before the reseed runs.
+        $schema = Schema::getCurrentSchemaName();
+
+        Schema::withoutForeignKeyConstraints(function () use ($schema): void {
+            foreach (Schema::getTableListing($schema, schemaQualified: false) as $table) {
                 if (in_array($table, self::PRESERVED_TABLES, true)) {
                     continue;
                 }

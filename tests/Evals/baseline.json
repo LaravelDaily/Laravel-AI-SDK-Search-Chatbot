@@ -1,4 +1,11 @@
 {
-    "accuracy": 0,
-    "notes": "Placeholder until a live eval run is committed. Do not invent accuracy."
+    "accuracy": 0.82,
+    "model": "gpt-4o",
+    "provider": "openai",
+    "recorded_at": "2026-09-03",
+    "observed_accuracy": 0.853,
+    "cases": 34,
+    "runs_per_case": 1,
+    "avg_latency_ms": 1729,
+    "notes": "Live run, 34 golden cases, 29/34 passed. `accuracy` is the regression threshold used by tests/Evals/LiveEvalTest.php and is set one case below the observed run to absorb non-determinism; `observed_accuracy` is what was actually measured. Consistency is not recorded here because a single run is trivially 100% consistent -- use `eval:search --runs=3` for a meaningful figure. All five failures were the model returning clarification_needed where the dataset expected an answer: sum-invoice-totals and invoices-linked-to-requests are genuine misses; john-smith-customers bailed before the resolver could produce candidates (the longer phrasing in req-john-smith-last-year passes); denied-list-tax-ids and denied-filter-tax-id refused up front because tax_id is absent from the generated schema, which reaches the same security outcome as the expected validator rejection by a different route. No run leaked a tax_id. Re-record with `php artisan demo:reset && php artisan eval:search`."
 }

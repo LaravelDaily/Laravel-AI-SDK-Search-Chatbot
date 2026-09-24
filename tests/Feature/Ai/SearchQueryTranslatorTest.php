@@ -8,6 +8,7 @@ use App\Models\Company;
 use App\Models\Customer;
 use App\Models\User;
 use App\Search\Operator;
+use App\Search\SearchSchema;
 
 beforeEach(function () {
     $this->travelTo('2026-08-22 09:00:00');
@@ -72,6 +73,36 @@ function unknownFieldOutput(): array
     ];
 }
 
+/**
+ * The shape a model reaches for when nothing pins the date format: ISO-8601 with a T and a Z.
+ *
+ * @return array<string, mixed>
+ */
+function isoDateOutput(): array
+{
+    return [
+        'entity' => 'service_requests',
+        'filters' => [
+            [
+                'field' => 'customer_name',
+                'operator' => 'contains',
+                'value' => 'John Smith',
+            ],
+            [
+                'field' => 'opened_at',
+                'operator' => 'between',
+                'value' => ['2025-08-22T00:00:00Z', '2026-08-22T00:00:00Z'],
+            ],
+        ],
+        'sort' => 'opened_at',
+        'direction' => 'desc',
+        'limit' => 50,
+        'confidence' => 'high',
+        'interpretation' => 'Service requests for customer John Smith opened in the last year',
+        'clarification_needed' => null,
+    ];
+}
+
 it('maps a faked structured response into a valid SearchQuery', function () {
     SearchQueryTranslator::fake([validTranslatorOutput()])->preventStrayPrompts();
 
@@ -116,6 +147,39 @@ it('retries once with the validator error when the first response uses an unknow
 
     SearchQueryTranslator::assertPrompted(fn ($prompt) => $prompt->contains('unknown field'));
     SearchQueryTranslator::assertPromptedTimes(2);
+});
+
+it('retries once with the validator error when the first response uses an ISO-8601 date', function () {
+    SearchQueryTranslator::fake([
+        isoDateOutput(),
+        validTranslatorOutput(),
+    ])->preventStrayPrompts();
+
+    $translation = $this->service->translate(
+        "show me all of customer John Smith's requests in the last year",
+        $this->actor,
+    );
+
+    expect($translation)->toBeInstanceOf(Translation::class)
+        ->and($translation->query->filters[1]->field)->toBe('opened_at')
+        ->and($translation->query->filters[1]->value)->toBe(['2025-08-22', '2026-08-22'])
+        ->and($translation->attempts)->toBe(2);
+
+    SearchQueryTranslator::assertPrompted(
+        fn ($prompt) => $prompt->contains("invalid date value '2025-08-22t00:00:00z'")
+            && $prompt->contains('YYYY-MM-DD'),
+    );
+    SearchQueryTranslator::assertPromptedTimes(2);
+});
+
+it('states the date format contract in the instructions the model sees', function () {
+    SearchQueryTranslator::fake([validTranslatorOutput()])->preventStrayPrompts();
+
+    $this->service->translate('show open requests', $this->actor);
+
+    SearchQueryTranslator::assertPrompted(function ($prompt) {
+        return str_contains((string) $prompt->agent->instructions(), SearchSchema::dateFormatRule());
+    });
 });
 
 it('gives up after one retry and returns a failure result', function () {

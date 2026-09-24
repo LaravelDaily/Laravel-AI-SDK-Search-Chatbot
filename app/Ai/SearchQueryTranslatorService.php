@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Search\InvalidSearchQuery;
 use App\Search\SearchQuery;
 use App\Search\SearchQueryValidator;
+use App\Search\SearchSchema;
 use Laravel\Ai\Responses\Data\Usage;
 use Laravel\Ai\Responses\StructuredAgentResponse;
 
@@ -143,12 +144,15 @@ PROMPT;
     private function repairPrompt(string $question, User $actor, string $reason): string
     {
         $normalizedReason = strtolower($reason);
+        $dateFormatRule = SearchSchema::dateFormatRule();
 
         return $this->userPrompt($question, $actor).<<<PROMPT
 
 
 The previous query failed validation: {$normalizedReason}
-Correct the query using only allowed fields. Do not invent fields.
+Fix exactly that problem and return the whole corrected query.
+Use only the entities, fields, operators, and values allowed by the schema. Do not invent fields.
+{$dateFormatRule}
 PROMPT;
     }
 
