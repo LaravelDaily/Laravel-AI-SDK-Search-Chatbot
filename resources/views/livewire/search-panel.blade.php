@@ -109,15 +109,21 @@
         </div>
     @endif
 
-    @if (auth()->user()?->isAdmin() && ($appliedQuery !== null || filled($sql)))
+    @if ($outcome !== null && $this->canSeeSql())
+        <div class="rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+            <p class="text-sm font-medium">{{ __('SQL executed') }}</p>
+            @if (filled($sql))
+                <pre class="mt-3 overflow-x-auto text-xs">{{ \App\Search\SqlFormatter::format($sql) }}</pre>
+            @else
+                <p class="mt-1 text-sm text-zinc-500">{{ __('No SQL was executed.') }}</p>
+            @endif
+        </div>
+    @endif
+
+    @if (auth()->user()?->isAdmin() && $appliedQuery !== null)
         <details class="rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
             <summary class="cursor-pointer text-sm font-medium">{{ __('Show generated query') }}</summary>
-            @if ($appliedQuery !== null)
-                <pre class="mt-3 overflow-x-auto text-xs">{{ json_encode($appliedQuery, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) }}</pre>
-            @endif
-            @if (filled($sql))
-                <pre class="mt-3 overflow-x-auto text-xs">{{ $sql }}</pre>
-            @endif
+            <pre class="mt-3 overflow-x-auto text-xs">{{ json_encode($appliedQuery, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) }}</pre>
         </details>
     @endif
 </div>

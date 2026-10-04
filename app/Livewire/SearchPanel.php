@@ -244,6 +244,11 @@ class SearchPanel extends Component
         return $this->outcome === SearchOutcome::Ok->value;
     }
 
+    public function canSeeSql(): bool
+    {
+        return $this->actor()->isAdmin() || config('search.show_sql_to_all_roles');
+    }
+
     public function render(): View
     {
         return view('livewire.search-panel');

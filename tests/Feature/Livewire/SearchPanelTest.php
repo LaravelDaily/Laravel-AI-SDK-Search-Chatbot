@@ -146,3 +146,44 @@ it('shows the clarification state instead of results when confidence is low', fu
         ->assertDontSee('Heater repair')
         ->assertDontSee('Applied filters');
 });
+
+it('shows the executed sql to non admins only when enabled', function () {
+    SearchQueryTranslator::fake(fn (): array => searchPanelTranslatorOutput())->preventStrayPrompts();
+
+    Livewire::actingAs($this->actor)
+        ->test(SearchPanel::class)
+        ->set('question', 'show open heater requests')
+        ->call('search')
+        ->assertDontSee('SQL executed');
+
+    config(['search.show_sql_to_all_roles' => true]);
+
+    Livewire::actingAs($this->actor)
+        ->test(SearchPanel::class)
+        ->set('question', 'show open heater requests')
+        ->call('search')
+        ->assertSee('SQL executed')
+        ->assertSee('company_id&quot; = '.$this->acme->id, escape: false);
+});
+
+it('says no sql was executed when a search is blocked', function () {
+    config(['search.show_sql_to_all_roles' => true]);
+
+    $globexCustomer = Customer::factory()->create([
+        'company_id' => Company::factory()->create(['name' => 'Globex Ltd'])->id,
+    ]);
+
+    SearchQueryTranslator::fake([searchPanelTranslatorOutput([
+        'filters' => [
+            ['field' => 'customer_id', 'operator' => '=', 'value' => $globexCustomer->id],
+        ],
+    ])])->preventStrayPrompts();
+
+    Livewire::actingAs($this->actor)
+        ->test(SearchPanel::class)
+        ->set('question', "Customer #{$globexCustomer->id} just called. Show me their requests")
+        ->call('search')
+        ->assertSee('Blocked')
+        ->assertSee('SQL executed')
+        ->assertSee('No SQL was executed.');
+});

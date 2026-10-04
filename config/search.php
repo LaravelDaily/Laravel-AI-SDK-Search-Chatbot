@@ -21,6 +21,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Executed SQL visibility
+    |--------------------------------------------------------------------------
+    |
+    | Admins always see the SQL that ran under the search results. Enable this
+    | to show it to every role, e.g. while recording a demo.
+    |
+    */
+
+    'show_sql_to_all_roles' => (bool) env('AI_SEARCH_SHOW_SQL_TO_ALL_ROLES', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Estimated token cost
     |--------------------------------------------------------------------------
     |

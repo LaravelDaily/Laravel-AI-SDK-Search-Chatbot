@@ -54,10 +54,13 @@ seeded user's password is `password`.
   or error screen has no chips.
 - **Result table**: underneath. Below it are **Total: N** and, when capped, *"Results were
   truncated to keep the response bounded."*
-- **Show generated query** (admin only): a collapsible panel at the very bottom. It shows
-  the query JSON first and the SQL that actually ran second. The JSON is the query *as
-  applied*, meaning after the resolver and the limit clamp, so it is not always byte-for-byte
-  what the model emitted.
+- **SQL executed**: a box at the very bottom, always open, showing the SQL that actually ran.
+  When nothing ran (Blocked, Failed, a clarification) it says *"No SQL was executed."*
+  Admins always see it. Other roles see it only with `AI_SEARCH_SHOW_SQL_TO_ALL_ROLES=true`
+  in `.env`, which is on for the shoot.
+- **Show generated query** (admin only): a collapsible panel under it with the query JSON
+  *as applied*, meaning after the resolver and the limit clamp, so it is not always
+  byte-for-byte what the model emitted.
 - **AI logs** (admin only): sidebar → **AI logs** (`/admin/ai-logs`). Columns are When, User,
   Question, Outcome, Rows, Tokens, Cost and Generated SQL. It has **no JSON column and no
   attempts column**. For the model's JSON, use *Show generated query* on the Search page.
@@ -179,105 +182,125 @@ by a better prompt.
 
 # Act 2 — The solution: model output is untrusted input
 
-Open the act with the whole board:
+**No terminal here.** Open the act by talking to camera (or over a simple title card), then
+go straight to the browser for §2. `php artisan demo:failures` is a cheat sheet for *you*, run
+off camera before shooting. Its naive-vs-guarded table is too dense for viewers, and its
+`Soft deletes` row is misleading anyway (see "Known rough edges").
 
-```bash
-php artisan demo:failures
-```
+**On camera:** "Everything the AI produces is a *description* of a query. Treat it like any
+other user input: it can be wrong, and it can be confidently wrong. So it goes through the
+same door as a form submission. Validate it, then apply your own rules in PHP, every time,
+whether or not the AI asked for them. I'll show you four of those rules, one at a time."
 
-**On camera:** "Everything the model produces is a *description* of a query. It is input, and
-it is input from something that will confidently make things up. So it goes through the same
-door as any other untrusted input: validate it, then apply your own guarantees in PHP, every
-time, whether or not the model asked for them."
+**Optional title card** (an editing overlay, not a terminal), listing what's coming:
 
-> **Note on that table.** The `Soft deletes` "Naive" figure counts both tenants *and*
-> soft-deleted rows, so it double-counts the tenant-leak row below it. Either explain that on
-> camera or skip the row — see "Known rough edges".
+1. Only your company's data
+2. No hidden columns, like tax IDs
+3. Invalid queries get one retry, then a clean error
+4. Never more than 200 rows
 
 ---
 
 ## 2. Tenant scope — the guard you have to build
 
-Both tenants own a customer named exactly `John Smith`. A query that filters for Globex's
-John Smith while acting as an Acme user is the headline security test.
+**The one idea:** the model writes the query, but it never decides *whose* data the query
+can touch. PHP adds "your company only" to every search, after the model is done, and
+refuses outright when a query points at another company's records.
 
-```bash
-php artisan test --compact --filter="tenant leak"
-```
+**Everything the viewer sees is in the browser.** No terminal in this section.
 
-**On camera:** "The naive runner hands Globex's John Smith to an Acme user. The real runner
-returns zero rows. The tenant scope is applied in PHP after validation, unconditionally, no
-matter what the model emitted — the model does not get to name a company."
+### Behind the scenes (before recording, not on camera)
 
-### On screen: three prompts that go for Globex's data from an Acme login
+1. `php artisan demo:reset`.
+2. Two browser windows already signed in: `acme-agent@example.com` and
+   `acme-admin@example.com`. (Optional third: `globex-agent@example.com`.)
+3. Know this one fact: **customer #28 is John Smith from Globex**, a different company. Acme
+   owns customers 1–27, so the ID does not change between resets. To double-check:
+   `php artisan tinker --execute 'App\Models\Customer::where("email","john.smith@globex.test")->value("id");'`
+4. Optional sanity check that the guard works: `php artisan test --compact --filter="tenant leak"`.
+   This is for you, not for the video.
 
-Globex's John Smith is customer **#28**. Acme owns customers 1–27, counting the trashed Jon
-Smyth, so the ID is stable across resets. Check it once:
+### On screen, in order
 
-```bash
-php artisan tinker --execute 'App\Models\Customer::where("email","john.smith@globex.test")->value("id");'
-```
+**Setup line (on camera):** "Two companies use this app, Acme and Globex. Their data sits in
+the same tables. I'm logged in as an Acme employee. Let me try to read Globex's data —
+not by hacking anything, just by typing into the search box."
 
-As `acme-agent@example.com`:
+**Beat 1 — a customer number from a phone call.** Acme agent window → **Search**:
 
-> show me requests for customer_id 28
+> Customer #28 just called. Show me their open requests
 
-Outcome **Blocked**: *"This search was blocked because it would access another tenant's
-data."* The interpretation box still says *"Retrieve service requests for customer with ID
-28"*, so the model did exactly what it was asked. `TenantGuard` said no before any SQL ran.
-This was blocked in 4 of 4 live runs.
+Framing: support agents get customer numbers from calls, emails and URLs all the time, and
+sometimes the number is wrong or belongs to someone else. #28 happens to be Globex's customer.
+
+Result: **Blocked** — *"This search was blocked because it would access another tenant's
+data."* Point at the *Interpretation* box: *"Show open service requests for customer #28."*
+(2 of 2 live runs blocked on 2026-10-04. *show me requests for customer 28* also works.)
+
+**On camera:** "Look at the interpretation. The AI understood me perfectly and wrote exactly
+the query I asked for. It didn't refuse — it's not the AI's job to know that customer 28
+belongs to someone else. My PHP code checked the query *before* running it, saw that
+customer 28 is Globex's, and stopped it." Point at the **SQL executed** box at the bottom:
+*"No SQL was executed."* "Nothing ever hit the database."
+
+**Optional: the name version.** *show me requests for John Smith from Globex* → Acme's own
+two John Smiths ("which one?"), never Globex's. The AI can't say "company = Globex", so it
+searches names, and name searches only ever see Acme's customers. This worked 1 of 2 runs;
+the other time it asked a clarifying question. Use it only if you get the good take.
+
+**Beat 2 — ask by email instead of ID.** Same window:
 
 > find the customer with email john.smith@globex.test
 
-**No matching rows.** Here the model emits a perfectly valid query and the runner's
-`company_id = 1` makes Globex's customer invisible. It is not blocked, it simply does not
-exist from where you sit.
+Result: **No matching rows.**
 
-> show me Globex Ltd's open requests
+**On camera:** "Different trick, different result. This query looks harmless, so it isn't
+blocked — it runs. But every query I run gets 'company = Acme' added to it, so from where I
+sit, Globex's customer simply doesn't exist."
 
-**Failed**: *"no customer matching 'Globex Ltd'"*. The model has no way to name a company, so
-it turned "Globex Ltd" into a customer-name filter and the resolver found nothing. Use this
-one only if you want to make the "the model does not get to name a company" line literal.
-
-For contrast, switch to the `globex-agent@example.com` window and ask:
-
-> show me all of customer John Smith's requests in the last year
-
-It resolves straight to Globex's single John Smith. The chip reads `customer_id = 28`, and
-that chip was written by the **resolver**, not the model; the model only emitted
-`customer_name contains "John Smith"`. **2 rows.** Same question, same name: Acme gets a
-"which one?" (§6), and Globex gets its own customer and never Acme's.
-
-**Bonus beat.** Hand-edited chips go through the same door. After any Acme result, click a
-chip, set **Field** to `customer_id`, **Operator** to `=`, **Value** to `28`, then click
-**Apply filter**. You get **Blocked**, with no model involved. `SearchService::rerun()` runs
-`TenantGuard` and the validator again.
-
-### On screen: the SQL the model never asked for
-
-Switch to the `acme-admin@example.com` window → **Search**:
+**Beat 3 — prove the extra condition is there.** Same agent window:
 
 > show me last year's requests
 
-Scroll to the bottom → click **Show generated query**. The JSON (top) has two `opened_at`
-filters, and that is all the model emitted. The SQL (bottom) has more:
+Look at two places on the page:
+
+- **Applied filters (the chips):** what the AI asked for. Only `opened_at` date filters.
+- **SQL executed (bottom):** what actually ran. Point at the two lines the AI never asked for:
 
 ```sql
-where `service_requests`.`company_id` = 1
-  and `service_requests`.`opened_at` >= '2025-09-23 00:00:00'
-  and `service_requests`.`opened_at` < '2026-09-23 00:00:00'
-  and `service_requests`.`deleted_at` is null
+where `service_requests`.`company_id` = 1          -- added by my PHP code
+  and `service_requests`.`opened_at` >= '...'
+  and `service_requests`.`opened_at` < '...'
+  and `service_requests`.`deleted_at` is null      -- added by Laravel (soft deletes)
 ```
 
-Then sidebar → **AI logs** to show that every search, including the blocked one, is logged
-with its outcome, tokens, cost and SQL. The blocked row has **no** SQL because nothing ran.
+**On camera:** "The AI asked for two date filters. Two more conditions showed up in the SQL.
+`deleted_at is null` comes free — that's Laravel's soft deletes, it's always there. But
+`company_id = 1` — nothing in Laravel adds that for you. It's there because I wrote code
+that adds it to every single search, no matter what the AI sends. That's the guarantee you
+have to build yourself. If you forget it, your AI search will happily show one customer's
+data to another."
 
-**On camera:** "Two conditions here that the model never asked for. `deleted_at is null` you
-get for free — that's Eloquent's global scope, and it holds no matter who builds the query.
-`company_id = 1` you do not get for free. Nothing in Eloquent adds it. It's there because
-the runner puts it there. That's the difference between a guarantee your framework gives you
-and one you have to build yourself — and the second kind is the kind an AI feature will
-quietly cost you."
+**Beat 4 (short) — it's all logged.** Admin window → sidebar → **AI logs**. Point at the
+Blocked row from Beat 1: outcome *Blocked*, and the **Generated SQL** column is empty,
+because nothing ran.
+
+**On camera:** "And the blocked attempt is in the log. Who tried, what they typed, and no SQL
+— because it never ran."
+
+### Optional extras (use one at most, or cut)
+
+- **Same name, other company.** In the `globex-agent` window:
+  *show me all of customer John Smith's requests in the last year* → Globex gets its own John
+  Smith (chip `customer_id = 28`, 2 rows). Acme asking the same question gets "which one?"
+  between *its own* two John Smiths (that's §6). Neither company ever sees the other's.
+- **Editing the filter by hand doesn't bypass it.** After any Acme result, click a filter
+  chip → **Field** `customer_id`, **Operator** `=`, **Value** `28` → **Apply filter** →
+  **Blocked**. No AI involved; the same PHP check runs on manual edits.
+- **Naming the company.** *show me Globex Ltd's open requests* → **Failed**: *"no customer
+  matching 'Globex Ltd'"*. The AI has no way to say "company = Globex" at all.
+
+### Reset after this section
 
 ```bash
 php artisan demo:reset
@@ -592,13 +615,13 @@ wrong."
    line aloud.
 3. Unscripted: the same first question a few more times, hunting for the `created_at` zero —
    "No matching rows." with `created_at` on the chips. Cut it if it doesn't show.
-4. **Act 2.** `php artisan demo:failures` — the whole board.
-5. Tenant leak. `--filter="tenant leak"`, then as **agent**: *show me requests for
-   customer_id 28* → Blocked, and *find the customer with email john.smith@globex.test* →
-   No matching rows. Then as **globex-agent**: *show me all of customer John Smith's requests
-   in the last year* → chip `customer_id = 28`, 2 rows.
-6. As **admin**: *show me last year's requests* → **Show generated query**, JSON beside SQL
-   (`company_id = 1`, `deleted_at is null`). Then sidebar → **AI logs**.
+4. **Act 2.** Intro to camera: "AI output is untrusted input." Optional title card with the
+   four rules. No terminal.
+5. Tenant scope (browser only). As **agent**: *Customer #28 just called. Show me their open requests* →
+   Blocked, then *find the customer with email john.smith@globex.test* → No matching rows.
+6. Same agent window: *show me last year's requests* → chips vs. the **SQL executed** box,
+   point at `company_id = 1` and `deleted_at is null`. Then admin window → **AI logs** → the
+   Blocked row with no SQL.
 7. PII. As **viewer**: *list customers* → 4 columns. As **admin**: the same prompt → **Tax ID**
    column, and the SQL selects `tax_id` while the JSON doesn't. As **viewer**: *list every
    customer's tax_id* → clarification.
